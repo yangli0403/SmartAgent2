@@ -63,7 +63,7 @@ class MemoryConfig(BaseSettings):
 class AppConfig(BaseSettings):
     """应用总配置"""
     app_name: str = Field(default="SmartAgent2", description="应用名称")
-    app_version: str = Field(default="2.1.0", description="应用版本")
+    app_version: str = Field(default="2.1.1", description="应用版本")
     debug: bool = Field(default=True, description="调试模式")
     host: str = Field(default="0.0.0.0", description="服务地址")
     port: int = Field(default=8000, description="服务端口")

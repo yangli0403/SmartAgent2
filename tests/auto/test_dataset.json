@@ -1,0 +1,759 @@
+{
+  "dataset_name": "SmartAgent2 功能验证测试用例集",
+  "version": "2.1.0",
+  "description": "基于 SmartAgent2 测试用例文档，覆盖对话交互、记忆提取、记忆检索、用户画像、人格切换等核心功能的完整测试数据集",
+  "test_user": "demo_wangwu",
+  "created_at": "2026-02-08",
+  "test_suites": [
+    {
+      "id": "suite_01",
+      "name": "基础对话与记忆提取",
+      "description": "验证系统能否正确响应用户对话并自动提取记忆信息",
+      "test_cases": [
+        {
+          "id": "TC-CHAT-001",
+          "name": "基础自我介绍",
+          "category": "对话交互",
+          "priority": "P0",
+          "description": "用户首次自我介绍，验证系统能正确响应并提取基本信息",
+          "character_id": "default",
+          "input": "你好，我叫王五，今年35岁，是一名产品经理，住在北京朝阳区。",
+          "expected_behavior": "系统应回复问候并确认用户信息",
+          "validation_points": [
+            {
+              "type": "response_contains",
+              "value": "王五",
+              "description": "回复中应包含用户姓名"
+            },
+            {
+              "type": "response_not_empty",
+              "value": true,
+              "description": "系统应有实质性回复"
+            },
+            {
+              "type": "status_code",
+              "value": 200,
+              "description": "接口返回200"
+            }
+          ],
+          "expected_memory_extraction": {
+            "episodic": [
+              "用户自我介绍，姓名王五，35岁，产品经理，住北京朝阳区"
+            ],
+            "semantic": [
+              {
+                "subject": "王五",
+                "predicate": "年龄",
+                "object": "35岁"
+              },
+              {
+                "subject": "王五",
+                "predicate": "职业",
+                "object": "产品经理"
+              },
+              {
+                "subject": "王五",
+                "predicate": "居住地",
+                "object": "北京朝阳区"
+              }
+            ]
+          }
+        },
+        {
+          "id": "TC-CHAT-002",
+          "name": "偏好信息表达",
+          "category": "对话交互",
+          "priority": "P0",
+          "description": "用户表达饮品偏好和休闲习惯，验证系统提取偏好类记忆",
+          "character_id": "default",
+          "input": "我喜欢喝美式咖啡，不加糖。周末喜欢去三里屯逛街。",
+          "expected_behavior": "系统应确认偏好并表示记住",
+          "validation_points": [
+            {
+              "type": "response_contains",
+              "value": "美式咖啡",
+              "description": "回复中应提及咖啡偏好"
+            },
+            {
+              "type": "response_contains",
+              "value": "三里屯",
+              "description": "回复中应提及休闲去处"
+            },
+            {
+              "type": "response_not_empty",
+              "value": true,
+              "description": "系统应有实质性回复"
+            }
+          ],
+          "expected_memory_extraction": {
+            "episodic": [
+              "用户喜欢不加糖的美式咖啡，周末去三里屯逛街"
+            ],
+            "semantic": [
+              {
+                "subject": "王五",
+                "predicate": "喜欢喝",
+                "object": "不加糖的美式咖啡",
+                "category": "preference"
+              },
+              {
+                "subject": "王五",
+                "predicate": "周末喜欢去",
+                "object": "三里屯逛街",
+                "category": "habit"
+              }
+            ]
+          }
+        },
+        {
+          "id": "TC-CHAT-003",
+          "name": "家庭关系信息",
+          "category": "对话交互",
+          "priority": "P0",
+          "description": "用户提供家庭成员信息，验证系统提取关系类记忆",
+          "character_id": "default",
+          "input": "我女儿小红今年6岁了，她特别喜欢画画。我老婆叫李梅，是个老师。",
+          "expected_behavior": "系统应确认家庭信息并可能提供相关建议",
+          "validation_points": [
+            {
+              "type": "response_contains",
+              "value": "小红",
+              "description": "回复中应提及女儿名字"
+            },
+            {
+              "type": "response_contains",
+              "value": "李梅",
+              "description": "回复中应提及妻子名字"
+            },
+            {
+              "type": "response_not_empty",
+              "value": true,
+              "description": "系统应有实质性回复"
+            }
+          ],
+          "expected_memory_extraction": {
+            "episodic": [
+              "用户女儿小红6岁喜欢画画，妻子李梅是老师"
+            ],
+            "semantic": [
+              {
+                "subject": "小红",
+                "predicate": "喜欢",
+                "object": "画画",
+                "category": "preference"
+              },
+              {
+                "subject": "李梅",
+                "predicate": "职业是",
+                "object": "老师",
+                "category": "fact"
+              },
+              {
+                "subject": "小红",
+                "predicate": "年龄",
+                "object": "6岁",
+                "category": "fact"
+              }
+            ]
+          }
+        },
+        {
+          "id": "TC-CHAT-004",
+          "name": "通勤和工作信息",
+          "category": "对话交互",
+          "priority": "P0",
+          "description": "用户提供通勤和工作信息，验证系统提取习惯和事实类记忆",
+          "character_id": "default",
+          "input": "我每天早上9点坐地铁去国贸上班，公司在CBD那边。最近在做一个AI产品。",
+          "expected_behavior": "系统应确认通勤信息并可能提供出行建议",
+          "validation_points": [
+            {
+              "type": "response_contains_any",
+              "value": [
+                "地铁",
+                "国贸",
+                "CBD",
+                "AI"
+              ],
+              "description": "回复中应提及通勤或工作相关内容"
+            },
+            {
+              "type": "response_not_empty",
+              "value": true,
+              "description": "系统应有实质性回复"
+            }
+          ],
+          "expected_memory_extraction": {
+            "episodic": [
+              "用户每天9点坐地铁去国贸上班，公司在CBD，做AI产品"
+            ],
+            "semantic": [
+              {
+                "subject": "王五",
+                "predicate": "通勤方式",
+                "object": "地铁",
+                "category": "habit"
+              },
+              {
+                "subject": "王五",
+                "predicate": "工作地点",
+                "object": "国贸/CBD",
+                "category": "fact"
+              },
+              {
+                "subject": "王五",
+                "predicate": "正在做",
+                "object": "AI产品",
+                "category": "fact"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "suite_02",
+      "name": "记忆检索与个性化推荐",
+      "description": "验证系统能否正确检索已存储的记忆并基于记忆提供个性化回复",
+      "test_cases": [
+        {
+          "id": "TC-MEM-001",
+          "name": "家庭信息记忆检索",
+          "category": "记忆检索",
+          "priority": "P0",
+          "description": "用户询问系统是否记住家庭信息，验证记忆检索准确性",
+          "character_id": "default",
+          "input": "你还记得我家里有几口人吗？我女儿喜欢什么？",
+          "expected_behavior": "系统应准确回忆家庭成员信息和女儿的兴趣",
+          "validation_points": [
+            {
+              "type": "response_contains",
+              "value": "三",
+              "description": "应提及家庭三口人"
+            },
+            {
+              "type": "response_contains",
+              "value": "小红",
+              "description": "应提及女儿名字"
+            },
+            {
+              "type": "response_contains",
+              "value": "画画",
+              "description": "应提及女儿喜欢画画"
+            },
+            {
+              "type": "response_contains",
+              "value": "李梅",
+              "description": "应提及妻子名字"
+            },
+            {
+              "type": "memory_used_gt",
+              "value": 5,
+              "description": "应使用5条以上记忆"
+            }
+          ],
+          "depends_on": [
+            "TC-CHAT-003"
+          ]
+        },
+        {
+          "id": "TC-MEM-002",
+          "name": "个性化活动推荐",
+          "category": "个性化推荐",
+          "priority": "P0",
+          "description": "用户请求推荐活动，验证系统能结合记忆提供个性化建议",
+          "character_id": "default",
+          "input": "帮我推荐一个适合带6岁小孩去的周末活动",
+          "expected_behavior": "系统应结合小红喜欢画画的记忆，推荐绘画相关活动",
+          "validation_points": [
+            {
+              "type": "response_contains_any",
+              "value": [
+                "画",
+                "绘",
+                "美术",
+                "艺术",
+                "小红"
+              ],
+              "description": "应结合女儿兴趣推荐"
+            },
+            {
+              "type": "response_not_empty",
+              "value": true,
+              "description": "系统应有实质性推荐"
+            },
+            {
+              "type": "memory_used_gt",
+              "value": 5,
+              "description": "应使用5条以上记忆"
+            }
+          ],
+          "depends_on": [
+            "TC-CHAT-001",
+            "TC-CHAT-002",
+            "TC-CHAT-003",
+            "TC-CHAT-004"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "suite_03",
+      "name": "用户画像验证",
+      "description": "验证系统自动构建的用户画像是否准确完整",
+      "test_cases": [
+        {
+          "id": "TC-PROF-001",
+          "name": "基本信息画像",
+          "category": "用户画像",
+          "priority": "P0",
+          "description": "验证用户画像中的基本信息字段是否正确",
+          "api_endpoint": "GET /api/v1/profile/{user_id}",
+          "validation_points": [
+            {
+              "type": "profile_field",
+              "field": "name",
+              "expected": "王五",
+              "description": "姓名应为王五"
+            },
+            {
+              "type": "profile_field",
+              "field": "age",
+              "expected": "35",
+              "description": "年龄应为35"
+            },
+            {
+              "type": "profile_field",
+              "field": "occupation",
+              "expected": "产品经理",
+              "description": "职业应为产品经理"
+            },
+            {
+              "type": "profile_field",
+              "field": "residence",
+              "expected": "北京朝阳区",
+              "description": "居住地应为北京朝阳区"
+            }
+          ],
+          "depends_on": [
+            "TC-CHAT-001"
+          ]
+        },
+        {
+          "id": "TC-PROF-002",
+          "name": "偏好信息画像",
+          "category": "用户画像",
+          "priority": "P1",
+          "description": "验证用户画像中的偏好信息是否正确提取",
+          "api_endpoint": "GET /api/v1/profile/{user_id}",
+          "validation_points": [
+            {
+              "type": "profile_preferences_contain",
+              "category": "饮品",
+              "key": "咖啡类型",
+              "value": "美式咖啡",
+              "description": "饮品偏好应包含美式咖啡"
+            },
+            {
+              "type": "profile_preferences_contain",
+              "category": "休闲活动",
+              "key": "周末去处",
+              "value": "三里屯",
+              "description": "休闲偏好应包含三里屯"
+            }
+          ],
+          "depends_on": [
+            "TC-CHAT-002"
+          ]
+        },
+        {
+          "id": "TC-PROF-003",
+          "name": "家庭关系画像",
+          "category": "用户画像",
+          "priority": "P1",
+          "description": "验证用户画像中的家庭关系信息是否正确",
+          "api_endpoint": "GET /api/v1/profile/{user_id}",
+          "validation_points": [
+            {
+              "type": "profile_relationship",
+              "person": "小红",
+              "relationship": "女儿",
+              "description": "应包含女儿小红的关系"
+            },
+            {
+              "type": "profile_relationship",
+              "person": "李梅",
+              "relationship": "妻子",
+              "description": "应包含妻子李梅的关系"
+            }
+          ],
+          "depends_on": [
+            "TC-CHAT-003"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "suite_04",
+      "name": "记忆统计与导出",
+      "description": "验证记忆统计和导出功能是否正常",
+      "test_cases": [
+        {
+          "id": "TC-STAT-001",
+          "name": "记忆统计查询",
+          "category": "记忆管理",
+          "priority": "P1",
+          "description": "验证记忆统计接口返回正确的记忆数量",
+          "api_endpoint": "GET /api/v1/memory/stats/{user_id}",
+          "validation_points": [
+            {
+              "type": "stats_episodic_gt",
+              "value": 5,
+              "description": "情景记忆应大于10条"
+            },
+            {
+              "type": "stats_semantic_gt",
+              "value": 5,
+              "description": "语义记忆应大于15条"
+            }
+          ],
+          "depends_on": [
+            "TC-CHAT-001",
+            "TC-CHAT-002",
+            "TC-CHAT-003",
+            "TC-CHAT-004"
+          ]
+        },
+        {
+          "id": "TC-STAT-002",
+          "name": "记忆导出JSON",
+          "category": "记忆管理",
+          "priority": "P2",
+          "description": "验证记忆导出功能能正确输出JSON格式数据",
+          "api_endpoint": "GET /api/v1/memory/export/{user_id}?format=json",
+          "validation_points": [
+            {
+              "type": "export_has_episodic",
+              "value": true,
+              "description": "导出数据应包含情景记忆"
+            },
+            {
+              "type": "export_has_semantic",
+              "value": true,
+              "description": "导出数据应包含语义记忆"
+            }
+          ],
+          "depends_on": [
+            "TC-CHAT-001",
+            "TC-CHAT-002",
+            "TC-CHAT-003",
+            "TC-CHAT-004"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "suite_05",
+      "name": "人格切换测试",
+      "description": "验证不同人格配置下的对话风格差异",
+      "test_cases": [
+        {
+          "id": "TC-CHAR-001",
+          "name": "默认人格（小智）对话",
+          "category": "人格切换",
+          "priority": "P0",
+          "description": "使用默认人格进行对话，验证中文车载助手风格",
+          "character_id": "default",
+          "input": "你好，帮我查一下明天的天气",
+          "expected_behavior": "以中文友好的车载助手风格回复",
+          "validation_points": [
+            {
+              "type": "response_not_empty",
+              "value": true,
+              "description": "系统应有回复"
+            },
+            {
+              "type": "character_id_match",
+              "value": "default",
+              "description": "返回的character_id应为default"
+            }
+          ]
+        },
+        {
+          "id": "TC-CHAR-002",
+          "name": "贾维斯人格对话",
+          "category": "人格切换",
+          "priority": "P0",
+          "description": "使用贾维斯人格进行对话，验证AI助手风格",
+          "character_id": "jarvis",
+          "input": "贾维斯，帮我分析一下今天的工作安排",
+          "expected_behavior": "以贾维斯的技术助手风格回复，可能称呼用户为「先生」",
+          "validation_points": [
+            {
+              "type": "response_not_empty",
+              "value": true,
+              "description": "系统应有回复"
+            },
+            {
+              "type": "character_id_match",
+              "value": "jarvis",
+              "description": "返回的character_id应为jarvis"
+            },
+            {
+              "type": "response_contains_any",
+              "value": [
+                "先生",
+                "分析",
+                "安排",
+                "日程"
+              ],
+              "description": "应体现贾维斯的对话风格"
+            }
+          ]
+        },
+        {
+          "id": "TC-CHAR-003",
+          "name": "阿尔弗雷德人格对话",
+          "category": "人格切换",
+          "priority": "P0",
+          "description": "使用阿尔弗雷德人格进行对话，验证管家风格",
+          "character_id": "alfred",
+          "input": "阿尔弗雷德，今天天气怎么样？我需要出门",
+          "expected_behavior": "以阿尔弗雷德的英式管家风格回复，可能称呼用户为「少爷」",
+          "validation_points": [
+            {
+              "type": "response_not_empty",
+              "value": true,
+              "description": "系统应有回复"
+            },
+            {
+              "type": "character_id_match",
+              "value": "alfred",
+              "description": "返回的character_id应为alfred"
+            },
+            {
+              "type": "response_contains_any",
+              "value": [
+                "少爷",
+                "先生",
+                "天气",
+                "出行"
+              ],
+              "description": "应体现阿尔弗雷德的对话风格"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "suite_06",
+      "name": "系统健康与配置",
+      "description": "验证系统基础服务是否正常运行",
+      "test_cases": [
+        {
+          "id": "TC-SYS-001",
+          "name": "健康检查",
+          "category": "系统检查",
+          "priority": "P0",
+          "description": "验证系统健康检查接口返回正常状态",
+          "api_endpoint": "GET /api/v1/system/health",
+          "validation_points": [
+            {
+              "type": "status_code",
+              "value": 200,
+              "description": "接口返回200"
+            },
+            {
+              "type": "response_field",
+              "field": "status",
+              "expected": "healthy",
+              "description": "状态应为healthy"
+            },
+            {
+              "type": "response_field",
+              "field": "version",
+              "expected": "2.1.0",
+              "description": "版本应为2.1.0"
+            }
+          ]
+        },
+        {
+          "id": "TC-SYS-002",
+          "name": "系统配置查询",
+          "category": "系统检查",
+          "priority": "P1",
+          "description": "验证系统配置接口返回正确的配置信息",
+          "api_endpoint": "GET /api/v1/system/config",
+          "validation_points": [
+            {
+              "type": "status_code",
+              "value": 200,
+              "description": "接口返回200"
+            },
+            {
+              "type": "response_field",
+              "field": "storage_mode",
+              "expected": "local",
+              "description": "存储模式应为local"
+            },
+            {
+              "type": "response_field",
+              "field": "llm_model",
+              "expected": "gpt-4.1-mini",
+              "description": "LLM模型应为gpt-4.1-mini"
+            }
+          ]
+        },
+        {
+          "id": "TC-SYS-003",
+          "name": "人格列表查询",
+          "category": "系统检查",
+          "priority": "P0",
+          "description": "验证人格列表接口返回所有已加载的人格配置",
+          "api_endpoint": "GET /api/v1/character/",
+          "validation_points": [
+            {
+              "type": "status_code",
+              "value": 200,
+              "description": "接口返回200"
+            },
+            {
+              "type": "list_length_gte",
+              "value": 3,
+              "description": "应至少有3个人格配置"
+            },
+            {
+              "type": "list_contains_id",
+              "value": "default",
+              "description": "应包含default人格"
+            },
+            {
+              "type": "list_contains_id",
+              "value": "jarvis",
+              "description": "应包含jarvis人格"
+            },
+            {
+              "type": "list_contains_id",
+              "value": "alfred",
+              "description": "应包含alfred人格"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "suite_07",
+      "name": "边界与异常测试",
+      "description": "验证系统对异常输入和边界情况的处理能力",
+      "test_cases": [
+        {
+          "id": "TC-EDGE-001",
+          "name": "空消息处理",
+          "category": "异常处理",
+          "priority": "P1",
+          "description": "发送空消息，验证系统是否正确处理",
+          "character_id": "default",
+          "input": "",
+          "expected_behavior": "系统应返回错误提示或友好引导",
+          "validation_points": [
+            {
+              "type": "status_code_in",
+              "value": [
+                200,
+                400,
+                422
+              ],
+              "description": "应返回200/400/422"
+            }
+          ]
+        },
+        {
+          "id": "TC-EDGE-002",
+          "name": "超长文本处理",
+          "category": "异常处理",
+          "priority": "P2",
+          "description": "发送超长文本，验证系统是否能正常处理",
+          "character_id": "default",
+          "input": "这是一段很长的测试文本。我想测试一下系统对于超长输入的处理能力。在实际使用中，用户可能会输入非常长的消息，包含大量的信息。比如我今天去了很多地方，先是去了公司开会，然后去了客户那里做演示，中午和同事一起吃了午饭，下午又回到公司继续工作，晚上还参加了一个行业交流会。整个过程非常充实但也很累。",
+          "expected_behavior": "系统应能正常处理并给出合理回复",
+          "validation_points": [
+            {
+              "type": "status_code",
+              "value": 200,
+              "description": "接口返回200"
+            },
+            {
+              "type": "response_not_empty",
+              "value": true,
+              "description": "系统应有回复"
+            }
+          ]
+        },
+        {
+          "id": "TC-EDGE-003",
+          "name": "不存在的人格ID",
+          "category": "异常处理",
+          "priority": "P1",
+          "description": "使用不存在的人格ID进行对话，验证错误处理",
+          "character_id": "nonexistent_character",
+          "input": "你好",
+          "expected_behavior": "系统应返回错误提示或使用默认人格",
+          "validation_points": [
+            {
+              "type": "status_code_in",
+              "value": [
+                200,
+                404
+              ],
+              "description": "应返回200（降级）或404（报错）"
+            }
+          ]
+        },
+        {
+          "id": "TC-EDGE-004",
+          "name": "特殊字符输入",
+          "category": "异常处理",
+          "priority": "P2",
+          "description": "发送包含特殊字符的消息，验证系统处理能力",
+          "character_id": "default",
+          "input": "你好！@#$%^&*()_+{}|:\"<>?~`-=[]\\;',./",
+          "expected_behavior": "系统应能正常处理特殊字符",
+          "validation_points": [
+            {
+              "type": "status_code_in",
+              "value": [
+                200,
+                400
+              ],
+              "description": "应返回200或400"
+            },
+            {
+              "type": "response_not_empty",
+              "value": true,
+              "description": "系统应有回复"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total_suites": 7,
+    "total_cases": 21,
+    "priority_distribution": {
+      "P0": 12,
+      "P1": 5,
+      "P2": 3
+    },
+    "category_distribution": {
+      "对话交互": 4,
+      "记忆检索": 1,
+      "个性化推荐": 1,
+      "用户画像": 3,
+      "记忆管理": 2,
+      "人格切换": 3,
+      "系统检查": 3,
+      "异常处理": 4
+    }
+  }
+}

@@ -189,13 +189,20 @@ smartagent2/
 └── tests/                    # 测试
     ├── test_storage.py       # 存储层测试 (21 cases)
     ├── test_core.py          # 核心引擎测试 (17 cases)
-    └── test_api.py           # API 端到端测试 (22 cases)
+    ├── test_api.py           # API 端到端测试 (22 cases)
+    └── auto/                 # 自动化端到端测试
+        ├── auto_test.py      # 自动化测试执行脚本
+        ├── test_dataset.json # 测试用例数据集 (7套件/21用例)
+        ├── TEST_PLAN.md      # 测试方案设计文档
+        └── README.md         # 自动化测试说明
 ```
 
 ## 运行测试
 
+### 单元测试
+
 ```bash
-# 运行全部测试
+# 运行全部单元测试
 python -m pytest smartagent2/tests/ -v
 
 # 运行指定模块测试
@@ -203,6 +210,15 @@ python -m pytest smartagent2/tests/test_storage.py -v
 python -m pytest smartagent2/tests/test_core.py -v
 python -m pytest smartagent2/tests/test_api.py -v
 ```
+
+### 自动化端到端测试
+
+```bash
+# 确保服务已启动，然后运行自动化测试
+python tests/auto/auto_test.py
+```
+
+自动化测试覆盖 7 大类场景（基础对话、记忆检索、用户画像、记忆统计、人格切换、系统健康、边界异常），共 21 个测试用例。详见 [tests/auto/README.md](tests/auto/README.md)。
 
 ## 技术栈
 

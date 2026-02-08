@@ -1,5 +1,21 @@
 # SmartAgent2 更新日志
 
+## v2.1.1 (2026-02-08)
+
+### 新增
+
+- 新增自动化端到端测试套件（`tests/auto/`），包含 7 大类 21 个测试用例
+- 新增测试用例数据集 `test_dataset.json`，覆盖对话交互、记忆检索、用户画像、记忆统计、人格切换、系统健康、边界异常等场景
+- 新增测试方案设计文档 `TEST_PLAN.md`
+
+### 修复
+
+- 修复测试数据集中字段名与 API 实际返回不一致的问题（`display_name→name`、`location→residence`）
+- 修复 API 端点路径错误（`/memories/→/memory/`）
+- 修复统计接口字段名映射（`episodic_count→total_episodic`、`semantic_count→total_semantic`）
+
+---
+
 ## v2.1.0 (2026-02-08)
 
 ### 新增功能
