@@ -1,17 +1,24 @@
 import axios from 'axios';
 
 // SmartAgent2 后端 API 基础 URL
-// 开发环境需要配置代理或直接连接到本地运行的 SmartAgent2 服务
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: { 'Content-Type': 'application/json' },
 });
 
-// 对话接口
+// ========== 用户角色 ==========
+export interface UserRole {
+  id: string;
+  name: string;
+  avatar: string;
+  description: string;
+  age: number;
+  role_in_family: string;
+}
+
+// ========== 对话接口 ==========
 export interface ChatRequest {
   user_id: string;
   session_id: string;
@@ -30,9 +37,10 @@ export interface ChatResponse {
   character_id?: string;
   memories_retrieved?: number;
   profile_updated?: boolean;
+  matched_memories?: EpisodicMemoryItem[];
 }
 
-// 记忆统计接口
+// ========== 记忆统计 ==========
 export interface MemoryStats {
   user_id: string;
   episodic_count: number;
@@ -42,16 +50,45 @@ export interface MemoryStats {
   newest_memory?: string;
 }
 
-// 用户画像接口
+// ========== 情景记忆 ==========
+export interface EpisodicMemoryItem {
+  id: string;
+  date: string;
+  event_type: string;
+  summary: string;
+  participants: string[];
+  location?: string;
+  details: string;
+  importance: number;
+}
+
+// ========== 用户偏好 ==========
+export interface PreferenceItem {
+  id: string;
+  category: string;
+  key: string;
+  value: string;
+  context?: string;
+}
+
+// ========== 关系信息 ==========
+export interface RelationshipItem {
+  person_name: string;
+  relationship: string;
+  details: Record<string, string>;
+  tags: string[];
+}
+
+// ========== 用户画像 ==========
 export interface UserProfile {
   user_id: string;
-  basic_info?: Record<string, any>;
-  preferences?: Record<string, any>;
-  relationships?: Record<string, any>;
+  basic_info: Record<string, string>;
+  preferences: PreferenceItem[];
+  relationships: RelationshipItem[];
   updated_at?: string;
 }
 
-// 人格配置接口
+// ========== 人格配置 ==========
 export interface Character {
   id: string;
   name: string;
@@ -59,35 +96,31 @@ export interface Character {
   source_format?: string;
 }
 
-// API 方法
+// ========== API 方法 ==========
 export const chatAPI = {
-  sendMessage: (data: ChatRequest) => 
+  sendMessage: (data: ChatRequest) =>
     api.post<ChatResponse>('/api/v1/chat', data),
 };
 
 export const memoryAPI = {
-  getStats: (userId: string) => 
+  getStats: (userId: string) =>
     api.get<MemoryStats>(`/api/v1/memory/stats/${userId}`),
-  
-  listEpisodic: (userId: string, page = 1, pageSize = 20) => 
+  listEpisodic: (userId: string, page = 1, pageSize = 20) =>
     api.get(`/api/v1/memory/episodic`, { params: { user_id: userId, page, page_size: pageSize } }),
-  
-  listSemantic: (userId: string, page = 1, pageSize = 20) => 
+  listSemantic: (userId: string, page = 1, pageSize = 20) =>
     api.get(`/api/v1/memory/semantic`, { params: { user_id: userId, page, page_size: pageSize } }),
 };
 
 export const profileAPI = {
-  getProfile: (userId: string) => 
+  getProfile: (userId: string) =>
     api.get<UserProfile>(`/api/v1/profile/${userId}`),
-  
-  updateProfile: (userId: string, data: Partial<UserProfile>) => 
+  updateProfile: (userId: string, data: Partial<UserProfile>) =>
     api.put<UserProfile>(`/api/v1/profile/${userId}`, data),
 };
 
 export const characterAPI = {
-  listCharacters: () => 
+  listCharacters: () =>
     api.get<Character[]>('/api/v1/character/'),
-  
-  getCharacter: (characterId: string) => 
+  getCharacter: (characterId: string) =>
     api.get<Character>(`/api/v1/character/${characterId}`),
 };
