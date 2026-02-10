@@ -25,6 +25,16 @@ import {
   getRelationships,
   updateBasicInfo,
 } from './profile-manager';
+import {
+  createMemoryMetadata,
+  batchRecordAccess,
+  scanAndForget,
+  scanAllUsers,
+  getForgetterStats,
+  getForgetterLog,
+  getRetentionRanking,
+  startForgetterScheduler,
+} from './forgetter';
 
 const router = Router();
 
@@ -50,6 +60,10 @@ router.post('/api/v1/chat', async (req: Request, res: Response) => {
         // 当候选记忆 > 10 条时启用 LLM 语义重排
         const enableRerank = allMemories.length > 10;
         memories = await retrieveMemories(message, allMemories, 5, enableRerank);
+        // 记录被检索到的记忆的访问（强化记忆，延缓遗忘）
+        if (memories.length > 0) {
+          batchRecordAccess(memories.map((m: any) => m.id));
+        }
       }
     }
 
@@ -306,7 +320,9 @@ router.post('/api/v1/memory/episodic', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Missing required fields: user_id, summary' });
     }
 
+    const memoryId = `e_${Date.now()}`;
     await addEpisodicMemory(user_id, {
+      id: memoryId,
       event_type: event_type || '',
       summary,
       details: details || '',
@@ -314,8 +330,10 @@ router.post('/api/v1/memory/episodic', async (req: Request, res: Response) => {
       participants: participants || [],
       importance: importance || 3,
     });
+    // 为新记忆创建遗忘元数据
+    createMemoryMetadata(memoryId, user_id, importance || 3);
 
-    res.json({ success: true, message: '记忆已添加' });
+    res.json({ success: true, message: '记忆已添加', memory_id: memoryId });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -361,5 +379,61 @@ const userRoles = [
 router.get('/api/v1/user/roles', (_req: Request, res: Response) => {
   res.json(userRoles);
 });
+
+// ========== 记忆遗忘管理接口 ==========
+
+// 获取遗忘状态概览
+router.get('/api/v1/forgetter/stats/:userId', (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const stats = getForgetterStats(userId);
+    res.json(stats);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 获取记忆保留分数排名
+router.get('/api/v1/forgetter/ranking/:userId', (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const ranking = getRetentionRanking(userId);
+    res.json({ items: ranking, total: ranking.length });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 获取遗忘日志
+router.get('/api/v1/forgetter/log/:userId', (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { limit = '20' } = req.query;
+    const log = getForgetterLog(userId, Number(limit));
+    res.json({ items: log, total: log.length });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 手动触发遗忘扫描
+router.post('/api/v1/forgetter/scan', async (req: Request, res: Response) => {
+  try {
+    const { user_id, threshold = 0.15, dry_run = false } = req.body;
+    
+    if (user_id) {
+      const result = await scanAndForget(user_id, threshold, dry_run);
+      res.json(result);
+    } else {
+      const results = await scanAllUsers(threshold, dry_run);
+      res.json({ users: results, total_users: results.length });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 启动定时遗忘扫描（默认每 60 分钟）
+startForgetterScheduler(60);
 
 export default router;
