@@ -243,12 +243,41 @@ export default function Home() {
                   <SelectItem key={c.id} value={c.id}>
                     <div>
                       <div className="font-medium">{c.name}</div>
-                      <div className="text-xs text-muted-foreground">{c.description?.slice(0, 20)}...</div>
+                      <div className="text-xs text-muted-foreground">{c.description?.slice(0, 30)}...</div>
                     </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {/* 当前人格详情 */}
+            {(() => {
+              const currentChar = characters.find(c => c.id === selectedCharacter);
+              if (!currentChar || !currentChar.adjectives || currentChar.adjectives.length === 0) return null;
+              return (
+                <div className="mt-2 bg-muted/50 rounded-lg p-2.5 space-y-1.5">
+                  {currentChar.adjectives && currentChar.adjectives.length > 0 && (
+                    <div>
+                      <div className="text-[10px] text-muted-foreground mb-1">性格特质</div>
+                      <div className="flex flex-wrap gap-1">
+                        {currentChar.adjectives.slice(0, 6).map((adj, i) => (
+                          <Badge key={i} variant="outline" className="text-[10px] h-4">{adj}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {currentChar.topics && currentChar.topics.length > 0 && (
+                    <div>
+                      <div className="text-[10px] text-muted-foreground mb-1">擅长领域</div>
+                      <div className="flex flex-wrap gap-1">
+                        {currentChar.topics.slice(0, 4).map((topic, i) => (
+                          <Badge key={i} variant="secondary" className="text-[10px] h-4">{topic}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           <Separator className="my-3" />

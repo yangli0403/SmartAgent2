@@ -12,6 +12,7 @@ import {
   getEpisodicMemories,
   addEpisodicMemory,
 } from './storage';
+import { getCharacterList, getCharacterConfig } from './characters';
 
 const router = Router();
 
@@ -112,19 +113,13 @@ router.get('/api/v1/memory/episodic', async (req: Request, res: Response) => {
   }
 });
 
-// ========== AI 人格接口 ==========
-const characters = [
-  { id: 'default', name: '小智', description: '智能车载 AI 助手，温和友好，擅长导航、音乐、天气等车载场景' },
-  { id: 'jarvis', name: '贾维斯', description: '高效精准的 AI 助手，风格简洁专业，精通技术分析和数据驱动决策' },
-  { id: 'alfred', name: '阿尔弗雷德', description: '优雅绅士的管家型 AI，措辞考究，擅长生活管理和礼仪建议' },
-];
-
+// ========== AI 人格接口（使用 ElizaOS Characterfile 风格的丰富数据） ==========
 router.get('/api/v1/character/', (_req: Request, res: Response) => {
-  res.json(characters);
+  res.json(getCharacterList());
 });
 
 router.get('/api/v1/character/:characterId', (req: Request, res: Response) => {
-  const character = characters.find(c => c.id === req.params.characterId);
+  const character = getCharacterConfig(req.params.characterId);
   if (!character) {
     return res.status(404).json({ error: 'Character not found' });
   }

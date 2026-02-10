@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // SmartAgent2 后端 API 基础 URL
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -88,12 +88,25 @@ export interface UserProfile {
   updated_at?: string;
 }
 
-// ========== 人格配置 ==========
+// ========== 人格配置（ElizaOS Characterfile 风格） ==========
 export interface Character {
   id: string;
   name: string;
-  description?: string;
-  source_format?: string;
+  description: string;
+  bio?: string[];
+  lore?: string[];
+  adjectives?: string[];
+  topics?: string[];
+  style?: {
+    all?: string[];
+    chat?: string[];
+  };
+  messageExamples?: Array<Array<{
+    user: string;
+    content: string;
+  }>>;
+  knowledge?: string[];
+  system?: string;
 }
 
 // ========== API 方法 ==========
