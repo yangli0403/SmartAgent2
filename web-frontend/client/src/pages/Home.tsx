@@ -3,6 +3,7 @@
  * 三栏布局：左侧配置（用户角色+AI人格+记忆开关）、中间对话、右侧画像+记忆
  */
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { PreferenceEditDialog } from '@/components/PreferenceEditDialog';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,14 +15,13 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   Send, Brain, User, MessageSquare, Settings, BarChart3, Loader2,
-  Car, Heart, BookOpen, Users, MapPin, Music, Thermometer, Clock,
+  Car, Heart, BookOpen, Users, MapPin, Music, Thermometer, Clock, Edit,
 } from "lucide-react";
 import { type ChatRequest, type Character, type MemoryStats, type UserProfile, type UserRole, type EpisodicMemoryItem } from "@/lib/api";
 import {
-  mockChatAPI as chatAPI, mockMemoryAPI as memoryAPI,
-  mockProfileAPI as profileAPI, mockCharacterAPI as characterAPI,
-  mockUserRoleAPI as userRoleAPI, userRoles,
-} from "@/lib/mock-api";
+  chatAPI, memoryAPI, profileAPI, characterAPI, userRoleAPI,
+} from "@/lib/api";
+import { userRoles as mockUserRoles } from "@/lib/mock-api";
 
 interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -54,9 +54,12 @@ export default function Home() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [episodicMemories, setEpisodicMemories] = useState<EpisodicMemoryItem[]>([]);
 
+  // 偏好编辑对话框
+  const [prefEditOpen, setPrefEditOpen] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const currentRole = useMemo(() => roles.find(r => r.id === selectedUserId) || userRoles[0], [roles, selectedUserId]);
+  const currentRole = useMemo(() => roles.find(r => r.id === selectedUserId) || mockUserRoles[0], [roles, selectedUserId]);
 
   // 初始化
   useEffect(() => {
@@ -94,11 +97,24 @@ export default function Home() {
     }
   };
 
+  const handleSavePreferences = async (newPreferences: UserProfile['preferences']) => {
+    try {
+      if (!userProfile) return;
+      const updatedProfile = { ...userProfile, preferences: newPreferences };
+      await profileAPI.updateProfile(selectedUserId, updatedProfile);
+      setUserProfile(updatedProfile);
+      toast.success('偏好设置已更新');
+    } catch (e) {
+      console.error('保存偏好失败:', e);
+      toast.error('保存偏好失败');
+    }
+  };
+
   const handleUserSwitch = (newUserId: string) => {
     setSelectedUserId(newUserId);
     setSessionId(`sess_${Date.now()}`);
     setMessages([]);
-    const role = userRoles.find(r => r.id === newUserId);
+    const role = roles.find(r => r.id === newUserId);
     toast.success(`已切换到用户：${role?.name || newUserId}`);
   };
 
@@ -189,7 +205,7 @@ export default function Home() {
               <Users className="h-3.5 w-3.5" /> 用户角色
             </label>
             <div className="space-y-1.5">
-              {userRoles.map(role => (
+              {roles.map(role => (
                 <button
                   key={role.id}
                   onClick={() => handleUserSwitch(role.id)}
@@ -413,9 +429,20 @@ export default function Home() {
 
                   {/* 偏好设置（按分类） */}
                   <div>
-                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
-                      <Heart className="h-3.5 w-3.5" /> 偏好设置
-                    </h4>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                        <Heart className="h-3.5 w-3.5" /> 偏好设置
+                      </h4>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                        onClick={() => setPrefEditOpen(true)}
+                      >
+                        <Edit className="h-3 w-3 mr-1" />
+                        编辑
+                      </Button>
+                    </div>
                     <div className="space-y-2">
                       {Object.entries(groupedPrefs).map(([category, prefs]) => (
                         <div key={category} className="bg-muted/50 rounded-lg p-2.5">
@@ -463,10 +490,10 @@ export default function Home() {
                       <div className="text-[10px] text-muted-foreground leading-relaxed">{m.details}</div>
                       <div className="flex items-center gap-1 mt-1.5">
                         {m.participants.map(pid => {
-                          const role = userRoles.find(r => r.id === pid);
-                          return role ? (
+                          const participantRole = roles.find(r => r.id === pid);
+                          return participantRole ? (
                             <Badge key={pid} variant="secondary" className="text-[10px] h-4">
-                              {role.avatar} {role.name}
+                              {participantRole.avatar} {participantRole.name}
                             </Badge>
                           ) : null;
                         })}
@@ -512,6 +539,16 @@ export default function Home() {
           </Tabs>
         </aside>
       </div>
+
+      {/* 偏好编辑对话框 */}
+      {userProfile && (
+        <PreferenceEditDialog
+          open={prefEditOpen}
+          onOpenChange={setPrefEditOpen}
+          preferences={userProfile.preferences}
+          onSave={handleSavePreferences}
+        />
+      )}
     </div>
   );
 }

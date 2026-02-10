@@ -98,29 +98,52 @@ export interface Character {
 
 // ========== API 方法 ==========
 export const chatAPI = {
-  sendMessage: (data: ChatRequest) =>
-    api.post<ChatResponse>('/api/v1/chat', data),
+  sendMessage: async (data: ChatRequest) => {
+    const response = await api.post<ChatResponse>('/api/v1/chat', data);
+    return { data: response.data };
+  },
 };
 
 export const memoryAPI = {
-  getStats: (userId: string) =>
-    api.get<MemoryStats>(`/api/v1/memory/stats/${userId}`),
-  listEpisodic: (userId: string, page = 1, pageSize = 20) =>
-    api.get(`/api/v1/memory/episodic`, { params: { user_id: userId, page, page_size: pageSize } }),
-  listSemantic: (userId: string, page = 1, pageSize = 20) =>
-    api.get(`/api/v1/memory/semantic`, { params: { user_id: userId, page, page_size: pageSize } }),
+  getStats: async (userId: string) => {
+    const response = await api.get<MemoryStats>(`/api/v1/memory/stats/${userId}`);
+    return { data: response.data };
+  },
+  listEpisodic: async (userId: string, page = 1, pageSize = 20) => {
+    const response = await api.get(`/api/v1/memory/episodic`, { params: { user_id: userId, page, page_size: pageSize } });
+    return { data: response.data };
+  },
+  listSemantic: async (userId: string, page = 1, pageSize = 20) => {
+    const response = await api.get(`/api/v1/memory/semantic`, { params: { user_id: userId, page, page_size: pageSize } });
+    return { data: response.data };
+  },
 };
 
 export const profileAPI = {
-  getProfile: (userId: string) =>
-    api.get<UserProfile>(`/api/v1/profile/${userId}`),
-  updateProfile: (userId: string, data: Partial<UserProfile>) =>
-    api.put<UserProfile>(`/api/v1/profile/${userId}`, data),
+  getProfile: async (userId: string) => {
+    const response = await api.get<UserProfile>(`/api/v1/profile/${userId}`);
+    return { data: response.data };
+  },
+  updateProfile: async (userId: string, data: Partial<UserProfile>) => {
+    const response = await api.put<UserProfile>(`/api/v1/profile/${userId}`, data);
+    return { data: response.data };
+  },
 };
 
 export const characterAPI = {
-  listCharacters: () =>
-    api.get<Character[]>('/api/v1/character/'),
-  getCharacter: (characterId: string) =>
-    api.get<Character>(`/api/v1/character/${characterId}`),
+  listCharacters: async () => {
+    const response = await api.get<Character[]>('/api/v1/character/');
+    return { data: response.data };
+  },
+  getCharacter: async (characterId: string) => {
+    const response = await api.get<Character>(`/api/v1/character/${characterId}`);
+    return { data: response.data };
+  },
+};
+
+export const userRoleAPI = {
+  listRoles: async () => {
+    const response = await api.get('/api/v1/user/roles');
+    return { data: response.data };
+  },
 };

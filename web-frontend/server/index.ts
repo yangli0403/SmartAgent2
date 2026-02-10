@@ -2,6 +2,7 @@ import express from "express";
 import { createServer } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
+import apiRoutes from "./routes";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -9,6 +10,12 @@ const __dirname = path.dirname(__filename);
 async function startServer() {
   const app = express();
   const server = createServer(app);
+
+  // 解析 JSON 请求体
+  app.use(express.json());
+
+  // API 路由
+  app.use(apiRoutes);
 
   // Serve static files from dist/public in production
   const staticPath =
@@ -27,6 +34,7 @@ async function startServer() {
 
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
+    console.log(`API available at http://localhost:${port}/api/v1/`);
   });
 }
 
