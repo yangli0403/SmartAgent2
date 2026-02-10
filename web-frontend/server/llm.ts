@@ -13,6 +13,8 @@ interface ChatContext {
   profile?: any;
   memories?: any[];
   characterId: string;
+  userId?: string;
+  sessionId?: string;
 }
 
 /**
@@ -164,6 +166,30 @@ export async function chatWithLLM(context: ChatContext): Promise<string> {
   try {
     const systemPrompt = buildContextPrompt(context);
 
+    // 构建消息列表（集成工作记忆的多轮上下文）
+    let messages: Array<{ role: string; content: string }> = [
+      { role: 'system', content: systemPrompt },
+    ];
+
+    // 如果有工作记忆，注入最近的多轮对话历史
+    if (context.userId && context.sessionId) {
+      try {
+        const { buildLLMMessages } = await import('./working-memory');
+        const historyMessages = buildLLMMessages(context.userId, context.sessionId, 8);
+        // historyMessages 已包含 user/assistant 交替的历史
+        // 排除最后一条（即当前用户消息，避免重复）
+        const history = historyMessages.slice(0, -1);
+        if (history.length > 0) {
+          messages.push(...history);
+        }
+      } catch (e) {
+        // 工作记忆不可用时降级
+      }
+    }
+
+    // 添加当前用户消息
+    messages.push({ role: 'user', content: context.message });
+
     // 调用字节跳动 Ark API
     const response = await fetch(`${ARK_BASE_URL}/chat/completions`, {
       method: 'POST',
@@ -173,10 +199,7 @@ export async function chatWithLLM(context: ChatContext): Promise<string> {
       },
       body: JSON.stringify({
         model: 'ep-20250811200411-zctsd', // DeepSeek 模型
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: context.message },
-        ],
+        messages,
         temperature: 0.7,
         max_tokens: 500,
       }),

@@ -35,6 +35,40 @@ import {
   getRetentionRanking,
   startForgetterScheduler,
 } from './forgetter';
+import {
+  evaluateProactiveRules,
+  triggerSceneService,
+  getProactiveRules,
+  updateRuleStatus,
+  resetRuleCooldown,
+  getCurrentContext,
+} from './proactive-service';
+import {
+  addMessage as wmAddMessage,
+  getContextSnapshot,
+  buildLLMMessages,
+  detectTopicSwitch,
+  getSessionInfo,
+  getUserSessions,
+  destroySession,
+  extendSessionTTL,
+  getWorkingMemoryStats,
+} from './working-memory';
+import {
+  upsertEntity,
+  getEntity,
+  getEntitiesByType,
+  searchEntities,
+  deleteEntity,
+  upsertRelation,
+  getEntityRelations,
+  deleteRelation as deleteGraphRelation,
+  getGraphVisualization,
+  findPath,
+  getNeighbors,
+  extractFromText,
+  getGraphStats,
+} from './graph-store';
 
 const router = Router();
 
@@ -67,15 +101,32 @@ router.post('/api/v1/chat', async (req: Request, res: Response) => {
       }
     }
 
-    // 调用 LLM 生成回复
+    // 工作记忆：记录用户消息
+    wmAddMessage(user_id, session_id, 'user', message);
+
+    // 工作记忆：检测话题切换
+    const topicSwitch = detectTopicSwitch(user_id, session_id, message);
+    if (topicSwitch.switched) {
+      console.log(`[Chat] 话题切换: ${topicSwitch.previous_topic} → ${topicSwitch.new_topic}`);
+    }
+
+    // 图谱：从对话中提取实体
+    extractFromText(user_id, message);
+
+    // 调用 LLM 生成回复（集成工作记忆的多轮上下文）
     const reply = await chatWithLLM({
       message,
       profile,
       memories,
       characterId: options?.character_id || 'default',
+      userId: user_id,
+      sessionId: session_id,
     });
 
-    // 追加到滑动窗口
+    // 工作记忆：记录 AI 回复
+    wmAddMessage(user_id, session_id, 'assistant', reply);
+
+    // 追加到提取器滑动窗口
     const sessionKey = `${user_id}:${session_id}`;
     appendToWindow(sessionKey, message, reply);
 
@@ -95,6 +146,9 @@ router.post('/api/v1/chat', async (req: Request, res: Response) => {
       console.error('[Chat] 异步提取失败:', err.message);
     });
 
+    // 获取工作记忆上下文快照
+    const contextSnapshot = getContextSnapshot(user_id, session_id);
+
     res.json({
       reply,
       session_id,
@@ -109,6 +163,12 @@ router.post('/api/v1/chat', async (req: Request, res: Response) => {
         score: m.score,
         match_reasons: m.match_reasons,
       })),
+      working_memory: {
+        current_topic: contextSnapshot.current_topic,
+        active_intents: contextSnapshot.active_intents,
+        total_turns: contextSnapshot.total_turns,
+        topic_switched: topicSwitch.switched,
+      },
     });
   } catch (error: any) {
     console.error('Chat error:', error);
@@ -116,7 +176,7 @@ router.post('/api/v1/chat', async (req: Request, res: Response) => {
   }
 });
 
-// ========== 会话管理接口 ==========
+// ========== 会话管理接口（集成工作记忆） ==========
 
 router.delete('/api/v1/session/:sessionId', async (req: Request, res: Response) => {
   try {
@@ -126,7 +186,65 @@ router.delete('/api/v1/session/:sessionId', async (req: Request, res: Response) 
       return res.status(400).json({ error: 'Missing user_id query parameter' });
     }
     clearWindow(`${user_id}:${sessionId}`);
+    destroySession(user_id as string, sessionId);
     res.json({ success: true, message: '会话已清除' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 获取会话详情（工作记忆状态）
+router.get('/api/v1/session/:sessionId', (req: Request, res: Response) => {
+  try {
+    const { sessionId } = req.params;
+    const { user_id } = req.query;
+    if (!user_id) {
+      return res.status(400).json({ error: 'Missing user_id query parameter' });
+    }
+    const info = getSessionInfo(user_id as string, sessionId);
+    if (!info) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    res.json(info);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 获取用户所有活跃会话
+router.get('/api/v1/sessions', (req: Request, res: Response) => {
+  try {
+    const { user_id } = req.query;
+    if (!user_id) {
+      return res.status(400).json({ error: 'Missing user_id query parameter' });
+    }
+    const sessions = getUserSessions(user_id as string);
+    res.json({ items: sessions, total: sessions.length });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 延长会话 TTL
+router.post('/api/v1/session/:sessionId/extend', (req: Request, res: Response) => {
+  try {
+    const { sessionId } = req.params;
+    const { user_id, additional_minutes = 30 } = req.body;
+    if (!user_id) {
+      return res.status(400).json({ error: 'Missing user_id' });
+    }
+    const success = extendSessionTTL(user_id, sessionId, additional_minutes * 60 * 1000);
+    res.json({ success, message: success ? `会话已延长 ${additional_minutes} 分钟` : '会话不存在' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 工作记忆全局统计
+router.get('/api/v1/working-memory/stats', (_req: Request, res: Response) => {
+  try {
+    const stats = getWorkingMemoryStats();
+    res.json(stats);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -435,5 +553,226 @@ router.post('/api/v1/forgetter/scan', async (req: Request, res: Response) => {
 
 // 启动定时遗忘扫描（默认每 60 分钟）
 startForgetterScheduler(60);
+
+// ========== 主动服务接口 ==========
+
+// 评估当前场景的主动服务
+router.post('/api/v1/proactive/evaluate', async (req: Request, res: Response) => {
+  try {
+    const { user_id, character_id = 'default', context } = req.body;
+    if (!user_id) {
+      return res.status(400).json({ error: 'Missing user_id' });
+    }
+    const results = await evaluateProactiveRules(user_id, character_id, context);
+    res.json({ items: results, total: results.length });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 触发指定场景的主动服务
+router.post('/api/v1/proactive/trigger', async (req: Request, res: Response) => {
+  try {
+    const { user_id, character_id = 'default', scene_type, scene_data } = req.body;
+    if (!user_id || !scene_type) {
+      return res.status(400).json({ error: 'Missing required fields: user_id, scene_type' });
+    }
+    const results = await triggerSceneService(user_id, character_id, scene_type, scene_data);
+    res.json({ items: results, total: results.length });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 获取所有主动服务规则
+router.get('/api/v1/proactive/rules', (_req: Request, res: Response) => {
+  try {
+    const rules = getProactiveRules();
+    res.json({ items: rules, total: rules.length });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 更新规则启用状态
+router.patch('/api/v1/proactive/rules/:ruleId', (req: Request, res: Response) => {
+  try {
+    const { ruleId } = req.params;
+    const { enabled } = req.body;
+    if (enabled === undefined) {
+      return res.status(400).json({ error: 'Missing enabled field' });
+    }
+    const success = updateRuleStatus(ruleId, enabled);
+    res.json({ success, message: success ? '规则已更新' : '规则不存在' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 重置规则冷却时间
+router.post('/api/v1/proactive/rules/:ruleId/reset-cooldown', (req: Request, res: Response) => {
+  try {
+    const { ruleId } = req.params;
+    const success = resetRuleCooldown(ruleId);
+    res.json({ success, message: success ? '冷却已重置' : '规则不存在或未触发过' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 获取当前场景上下文
+router.get('/api/v1/proactive/context', (_req: Request, res: Response) => {
+  try {
+    const context = getCurrentContext();
+    res.json(context);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========== 图谱接口 ==========
+
+// 获取图谱可视化数据
+router.get('/api/v1/graph/:userId', (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const graph = getGraphVisualization(userId);
+    res.json(graph);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 获取图谱统计
+router.get('/api/v1/graph/:userId/stats', (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const stats = getGraphStats(userId);
+    res.json(stats);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 搜索实体
+router.get('/api/v1/graph/:userId/entities', (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { type, keyword } = req.query;
+    let entities;
+    if (keyword) {
+      entities = searchEntities(userId, keyword as string);
+    } else {
+      entities = getEntitiesByType(userId, type as any);
+    }
+    res.json({ items: entities, total: entities.length });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 创建/更新实体
+router.post('/api/v1/graph/:userId/entities', (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { name, type, properties, source, confidence } = req.body;
+    if (!name || !type) {
+      return res.status(400).json({ error: 'Missing required fields: name, type' });
+    }
+    const entity = upsertEntity({ user_id: userId, name, type, properties, source, confidence });
+    res.json(entity);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 获取实体详情
+router.get('/api/v1/graph/entity/:entityId', (req: Request, res: Response) => {
+  try {
+    const entity = getEntity(req.params.entityId);
+    if (!entity) {
+      return res.status(404).json({ error: 'Entity not found' });
+    }
+    res.json(entity);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 删除实体
+router.delete('/api/v1/graph/entity/:entityId', (req: Request, res: Response) => {
+  try {
+    const success = deleteEntity(req.params.entityId);
+    res.json({ success, message: success ? '实体已删除' : '实体不存在' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 获取实体的关系
+router.get('/api/v1/graph/entity/:entityId/relations', (req: Request, res: Response) => {
+  try {
+    const relations = getEntityRelations(req.params.entityId);
+    res.json({ items: relations, total: relations.length });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 创建/更新关系
+router.post('/api/v1/graph/:userId/relations', (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { source_entity_id, target_entity_id, relation_type, label, properties, weight, source, confidence } = req.body;
+    if (!source_entity_id || !target_entity_id || !relation_type) {
+      return res.status(400).json({ error: 'Missing required fields: source_entity_id, target_entity_id, relation_type' });
+    }
+    const relation = upsertRelation({
+      user_id: userId, source_entity_id, target_entity_id, relation_type, label, properties, weight, source, confidence,
+    });
+    res.json(relation);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 删除关系
+router.delete('/api/v1/graph/relation/:relationId', (req: Request, res: Response) => {
+  try {
+    const success = deleteGraphRelation(req.params.relationId);
+    res.json({ success, message: success ? '关系已删除' : '关系不存在' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 查找两个实体之间的路径
+router.get('/api/v1/graph/:userId/path', (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { from, to, max_depth = '4' } = req.query;
+    if (!from || !to) {
+      return res.status(400).json({ error: 'Missing required query params: from, to' });
+    }
+    const path = findPath(userId, from as string, to as string, Number(max_depth));
+    if (!path) {
+      return res.json({ found: false, path: [] });
+    }
+    res.json({ found: true, path, length: path.length });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 获取实体的 N 跳邻居
+router.get('/api/v1/graph/entity/:entityId/neighbors', (req: Request, res: Response) => {
+  try {
+    const { hops = '1' } = req.query;
+    const result = getNeighbors(req.params.entityId, Number(hops));
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 export default router;
