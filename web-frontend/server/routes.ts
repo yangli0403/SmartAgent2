@@ -130,21 +130,30 @@ router.post('/api/v1/chat', async (req: Request, res: Response) => {
     const sessionKey = `${user_id}:${session_id}`;
     appendToWindow(sessionKey, message, reply);
 
-    // 异步提取记忆（不阻塞响应）
+    // 同步提取记忆和偏好（等待提取完成后再返回响应，确保前端能获取最新数据）
     const userName = profile?.basic_info?.name || user_id;
-    extractMemoriesAsync(
-      user_id,
-      session_id,
-      userName,
-      addEpisodicMemory,
-      upsertPreference,
-    ).then(result => {
-      if (result.has_meaningful_content) {
-        console.log(`[Chat] 异步提取完成: ${result.memories.length} 条记忆, ${result.preferences.length} 条偏好`);
+    let extractionResult = { memories: [] as any[], preferences: [] as any[], has_meaningful_content: false };
+    let profile_updated = false;
+    let memories_extracted = 0;
+    let preferences_extracted = 0;
+
+    try {
+      extractionResult = await extractMemoriesAsync(
+        user_id,
+        session_id,
+        userName,
+        addEpisodicMemory,
+        upsertPreference,
+      );
+      if (extractionResult.has_meaningful_content) {
+        memories_extracted = extractionResult.memories.length;
+        preferences_extracted = extractionResult.preferences.filter((p: any) => p.confidence >= 0.6).length;
+        profile_updated = preferences_extracted > 0;
+        console.log(`[Chat] 同步提取完成: ${memories_extracted} 条记忆, ${preferences_extracted} 条偏好`);
       }
-    }).catch(err => {
-      console.error('[Chat] 异步提取失败:', err.message);
-    });
+    } catch (err: any) {
+      console.error('[Chat] 同步提取失败:', err.message);
+    }
 
     // 获取工作记忆上下文快照
     const contextSnapshot = getContextSnapshot(user_id, session_id);
@@ -155,7 +164,16 @@ router.post('/api/v1/chat', async (req: Request, res: Response) => {
       user_id,
       character_id: options?.character_id,
       memories_retrieved: memories.length,
-      profile_updated: false,
+      profile_updated,
+      extraction: {
+        has_meaningful_content: extractionResult.has_meaningful_content,
+        memories_extracted,
+        preferences_extracted,
+        extracted_preferences: extractionResult.preferences
+          .filter((p: any) => p.confidence >= 0.6)
+          .map((p: any) => ({ category: p.category, key: p.key, value: p.value })),
+        extracted_memories: extractionResult.memories.map((m: any) => ({ event_type: m.event_type, summary: m.summary })),
+      },
       matched_memories: memories.map((m: any) => ({
         id: m.id,
         date: m.date,

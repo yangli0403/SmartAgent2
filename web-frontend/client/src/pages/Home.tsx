@@ -17,7 +17,7 @@ import {
   Send, Brain, User, MessageSquare, Settings, BarChart3, Loader2,
   Car, Heart, BookOpen, Users, MapPin, Music, Thermometer, Clock, Edit,
 } from "lucide-react";
-import { type ChatRequest, type Character, type MemoryStats, type UserProfile, type UserRole, type EpisodicMemoryItem } from "@/lib/api";
+import { type ChatRequest, type Character, type MemoryStats, type UserProfile, type UserRole, type EpisodicMemoryItem, type ExtractionInfo } from "@/lib/api";
 import {
   chatAPI, memoryAPI, profileAPI, characterAPI, userRoleAPI,
 } from "@/lib/api";
@@ -139,7 +139,33 @@ export default function Home() {
         matchedMemories: response.data.matched_memories,
       };
       setMessages(prev => [...prev, assistantMsg]);
-      loadUserData();
+
+      // 根据后端返回的提取结果决定是否刷新画像数据
+      const extraction = response.data.extraction;
+      if (extraction?.has_meaningful_content) {
+        // 提取到了有意义的内容，立即刷新数据（后端已同步完成写入）
+        await loadUserData();
+
+        // 显示提取结果的 toast 提示
+        if (extraction.preferences_extracted > 0) {
+          const prefDetails = extraction.extracted_preferences
+            .map(p => `${p.category}/${p.key}: ${p.value}`)
+            .join('\n');
+          toast.success(
+            `画像已同步更新：提取了 ${extraction.preferences_extracted} 条偏好`,
+            { description: prefDetails, duration: 5000 }
+          );
+        }
+        if (extraction.memories_extracted > 0) {
+          toast.info(
+            `记忆已更新：提取了 ${extraction.memories_extracted} 条情景记忆`,
+            { duration: 3000 }
+          );
+        }
+      } else {
+        // 无有意义内容提取，仍然刷新以保持数据最新
+        loadUserData();
+      }
     } catch (e: any) {
       console.error('发送消息失败:', e);
       toast.error('发送消息失败');

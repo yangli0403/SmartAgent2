@@ -30,6 +30,14 @@ export interface ChatRequest {
   };
 }
 
+export interface ExtractionInfo {
+  has_meaningful_content: boolean;
+  memories_extracted: number;
+  preferences_extracted: number;
+  extracted_preferences: Array<{ category: string; key: string; value: string }>;
+  extracted_memories: Array<{ event_type: string; summary: string }>;
+}
+
 export interface ChatResponse {
   reply: string;
   session_id: string;
@@ -37,6 +45,7 @@ export interface ChatResponse {
   character_id?: string;
   memories_retrieved?: number;
   profile_updated?: boolean;
+  extraction?: ExtractionInfo;
   matched_memories?: EpisodicMemoryItem[];
 }
 
